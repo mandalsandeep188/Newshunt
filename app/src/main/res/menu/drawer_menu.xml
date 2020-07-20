@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:title="@string/home"
+          android:icon="@drawable/home_vector" android:id="@+id/home"/>
+    <item android:title="@string/category" >
+        <menu >
+            <item android:title="@string/entertainment"
+                  android:icon="@drawable/movie_vector" android:id="@+id/entertainment"/>
+            <item android:title="@string/health"
+                  android:icon="@drawable/hospital_vector" android:id="@+id/health"/>
+            <item android:title="@string/sports"
+                android:icon="@drawable/sports_vector" android:id="@+id/sports"/>
+            <item android:title="@string/science"
+                android:icon="@drawable/satellite_vector" android:id="@+id/science"/>
+            <item android:title="@string/technology"
+                android:icon="@drawable/computer_vector" android:id="@+id/technology"/>
+        </menu>
+    </item>
+</menu>
