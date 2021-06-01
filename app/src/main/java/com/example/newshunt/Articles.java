@@ -8,7 +8,9 @@ public class Articles {
     private String imgUrl;
     private String date;
 
-    public Articles(){}
+    public Articles(){
+        this.imgUrl = "";
+    }
     public Articles(String title,String source, String description , String url, String imgUrl, String date)
     {
         this.date = date;

@@ -1,11 +1,11 @@
 package com.example.newshunt;
 
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ProgressBar;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -13,30 +13,28 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.JsonObjectRequest;
-import com.android.volley.toolbox.Volley;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
 
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
+
 public class HomeFragment extends Fragment {
+    Retrofit retrofit;
+    private Api api;
     RecyclerView recyclerView;
     List<Articles> articles;
     Adapter adapter;
     ProgressBar progressBar;
-    private String JSON_URL = "https://newsapi.org/v2/top-headlines?country=in&apiKey=d23fe9e55fce497c94b663b0b23b510b";
     RecyclerViewOnclickInterface recyclerViewOnclickInterface;
 
     public HomeFragment(RecyclerViewOnclickInterface listener) {
@@ -48,64 +46,68 @@ public class HomeFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.home_fragment, container, false);
         recyclerView = view.findViewById(R.id.articleList);
-        articles = new ArrayList<Articles>();
+        articles = new ArrayList<>();
         progressBar = view.findViewById(R.id.progressBar);
+        retrofit = new Retrofit.Builder()
+                .baseUrl(Api.BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+        api = retrofit.create(Api.class);
         extractArticles();
         return view;
     }
 
     private void extractArticles() {
-        RequestQueue requestQueue = Volley.newRequestQueue(getActivity());
-        JsonObjectRequest jsonObjectRequest = new JsonObjectRequest(Request.Method.GET, JSON_URL, null, new Response.Listener<JSONObject>() {
+        Call<JsonObject> call = api.getHome();
+
+        call.enqueue(new Callback<JsonObject>() {
             @Override
-            public void onResponse(JSONObject response) {
+            public void onResponse(@NonNull Call<JsonObject> call, @NonNull Response<JsonObject> response) {
                 try {
-                    JSONArray jsonArray = response.getJSONArray("articles");
+                    assert response.body() != null;
+                    JsonArray jsonArray = response.body().getAsJsonArray("articles");
 
-                    for (int i = 0; i < jsonArray.length(); i++) {
-                        JSONObject jsonObject = (JSONObject) jsonArray.get(i);
-                        JSONObject source = jsonObject.getJSONObject("source");
+                    for (int i = 0; i < jsonArray.size(); i++) {
+                        JsonObject jsonObject = (JsonObject) jsonArray.get(i);
+                        try{
+                            JsonObject source = jsonObject.getAsJsonObject("source");
 
-                        Articles article = new Articles();
-                        article.setSource(source.getString("name"));
+                            Articles article = new Articles();
+                            article.setSource(source.get("name").getAsString());
 
-                        // Setting date format
-                        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-                        sdf.setTimeZone(TimeZone.getTimeZone("IST"));
-                        Date date = sdf.parse(jsonObject.getString("publishedAt"));
-                        SimpleDateFormat formatter = new SimpleDateFormat("dd MMM yyyy HH:mm");
-                        String strDate = formatter.format(date);
+                            // Setting date format
+                            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+                            sdf.setTimeZone(TimeZone.getTimeZone("IST"));
+                            Date date = sdf.parse(jsonObject.get("publishedAt").getAsString());
+                            SimpleDateFormat formatter = new SimpleDateFormat("dd MMM yyyy HH:mm");
+                            String strDate = formatter.format(date);
 
-                        article.setDate(strDate);
-                        article.setTitle(jsonObject.getString("title"));
-                        article.setImgUrl(jsonObject.getString("urlToImage"));
-                        article.setUrl(jsonObject.getString("url"));
-                        articles.add(article);
+                            article.setDate(strDate);
+                            article.setTitle(jsonObject.get("title").getAsString());
+                            article.setImgUrl(jsonObject.get("urlToImage").getAsString());
+                            article.setUrl(jsonObject.get("url").getAsString());
+                            articles.add(article);
+                        }catch (Exception ignored){
+                        }
                     }
-                } catch (JSONException | ParseException e) {
-                    e.printStackTrace();
                 }
-//                recyclerView.setHasFixedSize(true);
+                catch (Exception e){
+                    Toast.makeText(getActivity(), e.getMessage(), Toast.LENGTH_SHORT).show();
+                }
+                progressBar.setVisibility(View.GONE);
+                recyclerView.setHasFixedSize(true);
                 recyclerView.setLayoutManager(new LinearLayoutManager(getActivity()));
-                adapter = new Adapter(getActivity(), articles, recyclerViewOnclickInterface);
+                adapter = new Adapter(getActivity(),articles,recyclerViewOnclickInterface);
                 recyclerView.setAdapter(adapter);
 
             }
-        }, new Response.ErrorListener() {
+
             @Override
-            public void onErrorResponse(VolleyError error) {
-                Log.d("error", error.getMessage());
+            public void onFailure(@NonNull Call<JsonObject> call,@NonNull Throwable t) {
+                Toast.makeText(getActivity(), "Some Error Occurred!", Toast.LENGTH_SHORT).show();
             }
         });
 
-        requestQueue.add(jsonObjectRequest);
-
-        requestQueue.addRequestFinishedListener(new RequestQueue.RequestFinishedListener<String>() {
-            @Override
-            public void onRequestFinished(Request<String> request) {
-                progressBar.setVisibility(View.GONE);
-            }
-        });
     }
 
 //     Tracking if interface made by us implemented and making instance of interface (listener)
